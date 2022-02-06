@@ -20,7 +20,33 @@ from torch.utils.data import DataLoader
 from torch.nn import Linear
 
 from utils import MnistDataset, cluster_acc
+import load_data
 
+class AE_time_series(nn.Module):
+
+    def __init__(self, n_input, n_z):
+        super().__init__()
+
+        # encoder
+        self.enc_1 = Linear(n_input, 10)
+        self.enc_2 = Linear(10,1)
+
+        # decoder
+
+        self.dec_1 = Linear(1,10)
+        self.x_bar_layer = Linear(10, n_input)
+
+    def forward(self, x):
+
+        # encoder
+        enc_h1 = F.relu(self.enc_1(x))
+        z = F.relu(self.enc_2(enc_h1))
+
+        # decoder
+        dec_h1 = F.relu(self.dec_1(z))
+        x_bar = self.x_bar_layer(dec_h1)
+
+        return x_bar, z
 
 class AE(nn.Module):
 
@@ -78,13 +104,16 @@ class IDEC(nn.Module):
         self.alpha = 1.0
         self.pretrain_path = pretrain_path
 
-        self.ae = AE(
-            n_enc_1=n_enc_1,
-            n_enc_2=n_enc_2,
-            n_enc_3=n_enc_3,
-            n_dec_1=n_dec_1,
-            n_dec_2=n_dec_2,
-            n_dec_3=n_dec_3,
+        # self.ae = AE(
+        #     n_enc_1=n_enc_1,
+        #     n_enc_2=n_enc_2,
+        #     n_enc_3=n_enc_3,
+        #     n_dec_1=n_dec_1,
+        #     n_dec_2=n_dec_2,
+        #     n_dec_3=n_dec_3,
+        #     n_input=n_input,
+        #     n_z=n_z)
+        self.ae = AE_time_series(
             n_input=n_input,
             n_z=n_z)
         # cluster layer
@@ -165,6 +194,9 @@ def train_idec():
     # cluster parameter initiate
     data = dataset.x
     y = dataset.y
+    print("y",y)
+    
+    
     data = torch.Tensor(data).to(device)
     x_bar, hidden = model.ae(data)
 
@@ -208,6 +240,7 @@ def train_idec():
                 print('Reached tolerance threshold. Stopping training.')
                 break
         for batch_idx, (x, _, idx) in enumerate(train_loader):
+           
 
             x = x.to(device)
             idx = idx.to(device)
@@ -230,9 +263,9 @@ if __name__ == "__main__":
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('--lr', type=float, default=0.001)
-    parser.add_argument('--n_clusters', default=7, type=int)
-    parser.add_argument('--batch_size', default=256, type=int)
-    parser.add_argument('--n_z', default=10, type=int)
+    parser.add_argument('--n_clusters', default=9, type=int)
+    parser.add_argument('--batch_size', default=64, type=int)
+    parser.add_argument('--n_z', default=1, type=int)
     parser.add_argument('--dataset', type=str, default='mnist')
     parser.add_argument('--pretrain_path', type=str, default='data/ae_mnist')
     parser.add_argument(
@@ -249,8 +282,13 @@ if __name__ == "__main__":
 
     if args.dataset == 'mnist':
         args.pretrain_path = 'data/ae_mnist.pkl'
-        args.n_clusters = 10
+        args.n_clusters = 9
         args.n_input = 784
         dataset = MnistDataset()
+    else:
+        args.pretrain_path = 'data/ae_{}.pkl'.format(args.dataset)
+        args.n_clusters = 9
+        dataset , X_scaled=  load_data.get_loader(args.dataset,args.batch_size)
+        args.n_input = X_scaled.shape[1]
     print(args)
     train_idec()

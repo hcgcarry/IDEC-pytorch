@@ -29,6 +29,8 @@ class MnistDataset(Dataset):
 
     def __init__(self):
         self.x, self.y = load_mnist()
+        print("self.x",self.x)
+        print("self.y",self.y)
 
     def __len__(self):
         return self.x.shape[0]
@@ -61,5 +63,6 @@ def cluster_acc(y_true, y_pred):
     for i in range(y_pred.size):
         w[y_pred[i], y_true[i]] += 1
     from sklearn.utils.linear_assignment_ import linear_assignment
+
     ind = linear_assignment(w.max() - w)
     return sum([w[i, j] for i, j in ind]) * 1.0 / y_pred.size
